@@ -34,6 +34,23 @@ pub(crate) struct TaskVTable {
 
     /// Creates a new waker associated with the task.
     pub(crate) clone_waker: unsafe fn(ptr: *const ()) -> RawWaker,
+
+    /// This field contains information about the memory layout of the RawTask.
+    /// It exists only in order to help debuggers decode RawTask memory blobs
+    /// and is not used at runtime.
+    #[allow(unused)]
+    layout_info: &'static TaskLayoutInfo,
+}
+
+#[allow(unused)]
+struct TaskLayoutInfo {
+    layout_version: u32,
+    future_size: u32,
+    future_align: u32,
+    output_size: u32,
+    output_align: u32,
+    schedule_size: u32,
+    schedule_align: u32,
 }
 
 /// Memory layout of a task.
@@ -120,6 +137,16 @@ where
                     destroy: Self::destroy,
                     run: Self::run,
                     clone_waker: Self::clone_waker,
+                    layout_info: &TaskLayoutInfo {
+                        // Bump this version if whenever the memory layout of RawTask changes.
+                        layout_version: 0,
+                        future_size: std::mem::size_of::<F>() as u32,
+                        future_align: std::mem::align_of::<F>() as u32,
+                        output_size: std::mem::size_of::<T>() as u32,
+                        output_align: std::mem::align_of::<T>() as u32,
+                        schedule_size: std::mem::size_of::<S>() as u32,
+                        schedule_align: std::mem::align_of::<S>() as u32,
+                    },
                 },
             });
 
